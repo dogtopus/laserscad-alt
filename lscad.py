@@ -171,24 +171,31 @@ def pack_pages(bb, page_dim):
     result['page_dim'] = page_dim
     return result
 
-def export_cut_layer(profile, openscad_module, output_dir, openscad_exe='openscad', define_vars=None):
+def export_layer(profile, openscad_module, output_dir, openscad_exe='openscad', define_vars=None, engrave=False):
     print('=> Creating output directory...')
     os.makedirs(output_dir, exist_ok=True)
     output_dir_abs = os.path.abspath(output_dir)
     openscad_module_name = '.'.join(tuple(os.path.basename(openscad_module).split('.'))[:-1])
-
+    output_type = 'engrave' if engrave else 'cut'
+    suffix = 'svg' if engrave else 'dxf'
+    op = int(LaserSCADOp.engrave if engrave else LaserSCADOp.cut)
     for pageno in range(profile['pages']):
-        output_path = os.path.join(output_dir_abs, f'{openscad_module_name}_{pageno}.dxf')
-        print(f'=> Exporting page {pageno} to DXF {output_path}...')
+        output_file = f'{openscad_module_name}_{output_type}_{pageno}.{suffix}'
+        output_path = os.path.join(output_dir_abs, output_file)
+        output_path_disp = os.path.join(output_dir, output_file)
+        print(f'=> Exporting page {pageno} to {output_path_disp}...')
         open_module_in_openscad(openscad_module,
                                 openscad_exe=openscad_exe,
                                 output=output_path,
                                 profile=profile,
                                 ctx_vars={
-                                    '_laserscad_mode': int(LaserSCADOp.cut),
+                                    '_laserscad_mode': op,
                                     '_lpart_current_page': pageno,
                                 },
                                 user_vars=define_vars)
+        if engrave:
+            # TODO correct SVG offset.
+            pass
 
 def start_preview(profile, openscad_module, openscad_exe='openscad', define_vars=None):
     print('=> Starting preview...')
@@ -207,6 +214,8 @@ if __name__ == '__main__':
     if len(profile['translation']) == 0:
         print('!! No lpart was generated. LaserSCAD likely ran into a problem. See previous logs for more details.')
     if args.operation == 'cut':
-        export_cut_layer(profile, args.module, args.output, define_vars=args.define_vars)
+        export_layer(profile, args.module, args.output, define_vars=args.define_vars)
+    elif args.operation == 'engrave':
+        export_layer(profile, args.module, args.output, define_vars=args.define_vars, engrave=True)
     elif args.operation == 'preview':
         start_preview(profile, args.module, define_vars=args.define_vars)
