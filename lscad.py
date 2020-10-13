@@ -82,11 +82,15 @@ def profile_to_params(profile):
 
 def extract_bb(openscad_module, openscad_exe='openscad', define_vars=None):
     print('=> Collecting information from OpenSCAD...')
-    defines = generate_defines(define_vars) if define_vars is not None else tuple()
+    openscad_module = os.path.abspath(openscad_module)
+    params = {}
+    if define_vars is not None:
+        params.update(define_vars)
+    params['_laserscad_mode'] = int(LaserSCADOp.pack)
+    defines = generate_defines(params)
     parts = 0
     with tempfile.NamedTemporaryFile(suffix='.echo') as openscad_output:
         subprocess.run([openscad_exe,
-                        '-D', '_laserscad_mode=1',
                         *defines,
                         '-o', openscad_output.name,
                         openscad_module])
@@ -149,12 +153,13 @@ def pack_pages(bb, page_dim):
             result['visibility'][part_id] = pageno
     if len(result['translation']) != len(bb_buffered):
         print('!! Some parts are missing. Page size might be too small.')
-    result['pages'] = len(abin)
+    result['pages'] = len(packer)
     result['page_dim'] = page_dim
     return result
 
 def export_cut_layer(profile, openscad_module, output_dir, openscad_exe='openscad', define_vars=None):
     print('=> Creating output directory...')
+    openscad_module = os.path.abspath(openscad_module)
     os.makedirs(output_dir, exist_ok=True)
     output_dir_abs = os.path.abspath(output_dir)
     openscad_module_name = '.'.join(tuple(os.path.basename(openscad_module).split('.'))[:-1])
@@ -178,6 +183,7 @@ def export_cut_layer(profile, openscad_module, output_dir, openscad_exe='opensca
 
 def start_preview(profile, openscad_module, openscad_exe='openscad', define_vars=None):
     print('=> Starting preview...')
+    openscad_module = os.path.abspath(openscad_module)
     params = {}
     if define_vars is not None:
         params.update(define_vars)
