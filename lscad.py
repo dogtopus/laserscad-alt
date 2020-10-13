@@ -65,7 +65,8 @@ def generate_defines(params):
             return f'[{", ".join(_serialize(e) for e in v.items())}]'
         # unknown python type. Fallback to repr()
         else:
-            return OPENSCAD_STR_ESC.sub(r'\\\1', repr(v))
+            v = OPENSCAD_STR_ESC.sub(r'\\\1', repr(v))
+            return f'"{v}"'
 
     for k, v in params.items():
         serialized = _serialize(v)
