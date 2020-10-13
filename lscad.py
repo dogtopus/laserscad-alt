@@ -113,16 +113,18 @@ def extract_bb(openscad_module, openscad_exe='openscad', define_vars=None):
                         seen_ids.add(part)
                         parts += 1
                         yield part_id, (float(w), float(h))
+                    else:
+                        print(f'==> OpenSCAD: {msg}')
                 elif tag == 'WARNING':
-                    print(f'!! OpenSCAD: {msg}')
+                    print(f'!!! OpenSCAD: {msg}')
                 elif tag == 'ERROR':
-                    print(f'** OpenSCAD: {msg}')
+                    print(f'*** OpenSCAD: {msg}')
                     raise RuntimeError(f'OpenSCAD: {msg}')
-        print(f'==> Found {parts} lparts')
+        print(f'=> Found {parts} lparts')
 
 def pack_pages(bb, page_dim):
     '''
-    Pack all bounding boxes to pages of specified size, with courtyard width (keepout area of each part) set to crtyd_width.
+    Pack all bounding boxes to pages of specified size.
     '''
     result = {
         'translation': {},
@@ -202,7 +204,7 @@ if __name__ == '__main__':
     profile = pack_pages(bb, args.pagesize)
 
     if len(profile['translation']) == 0:
-        print('!! No page generated. LaserSCAD may ran into some issues.')
+        print('!! No lpart was generated. LaserSCAD likely ran into a problem. See previous logs for more details.')
     if args.operation == 'cut':
         export_cut_layer(profile, args.module, args.output, define_vars=args.define_vars)
     elif args.operation == 'preview':
