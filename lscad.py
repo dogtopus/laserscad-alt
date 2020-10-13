@@ -39,6 +39,22 @@ def parse_args():
     p.add_argument('-o', '--output', metavar='dir', default='./cam', help='Output to directory (default to "./cam/").')
     return p, p.parse_args()
 
+def open_module_in_openscad(module, openscad_exe='openscad', output=None, profile=None, ctx_vars=None, user_vars=None):
+    openscad_module = os.path.abspath(module)
+    params = {}
+    if user_vars is not None:
+        params.update(user_vars)
+    if profile is not None:
+        params.update(profile_to_params(profile))
+    if ctx_vars is not None:
+        params.update(ctx_vars)
+    defines = generate_defines(params)
+    openscad_args = [openscad_exe, *defines, openscad_module]
+    if output is not None:
+        openscad_args.append('-o')
+        openscad_args.append(output)
+    return subprocess.run(openscad_args)
+
 def generate_defines(params):
     def _serialize(v):
         # undefined
@@ -83,18 +99,13 @@ def profile_to_params(profile):
 
 def extract_bb(openscad_module, openscad_exe='openscad', define_vars=None):
     print('=> Collecting information from OpenSCAD...')
-    openscad_module = os.path.abspath(openscad_module)
-    params = {}
-    if define_vars is not None:
-        params.update(define_vars)
-    params['_laserscad_mode'] = int(LaserSCADOp.pack)
-    defines = generate_defines(params)
     parts = 0
     with tempfile.NamedTemporaryFile(suffix='.echo') as openscad_output:
-        subprocess.run([openscad_exe,
-                        *defines,
-                        '-o', openscad_output.name,
-                        openscad_module])
+        open_module_in_openscad(openscad_module,
+                                openscad_exe=openscad_exe,
+                                output=openscad_output.name,
+                                ctx_vars={'_laserscad_mode': int(LaserSCADOp.pack)},
+                                user_vars=define_vars)
         print('=> Extracting bounding boxes for lparts...')
         for lines in openscad_output:
             m = OPENSCAD_TAGMSG.match(lines.rstrip().decode('utf-8'))
@@ -162,7 +173,6 @@ def pack_pages(bb, page_dim):
 
 def export_cut_layer(profile, openscad_module, output_dir, openscad_exe='openscad', define_vars=None):
     print('=> Creating output directory...')
-    openscad_module = os.path.abspath(openscad_module)
     os.makedirs(output_dir, exist_ok=True)
     output_dir_abs = os.path.abspath(output_dir)
     openscad_module_name = '.'.join(tuple(os.path.basename(openscad_module).split('.'))[:-1])
@@ -170,32 +180,23 @@ def export_cut_layer(profile, openscad_module, output_dir, openscad_exe='opensca
     for pageno in range(profile['pages']):
         output_path = os.path.join(output_dir_abs, f'{openscad_module_name}_{pageno}.dxf')
         print(f'=> Exporting page {pageno} to DXF {output_path}...')
-        params = {}
-        if define_vars is not None:
-            params.update(define_vars)
-        params.update(profile_to_params(profile))
-
-        params['_lpart_current_page'] = pageno
-        params['_laserscad_mode'] = int(LaserSCADOp.cut)
-
-        defines = generate_defines(params)
-        subprocess.run([openscad_exe,
-                        *defines,
-                        '-o', output_path,
-                        openscad_module])
+        open_module_in_openscad(openscad_module,
+                                openscad_exe=openscad_exe,
+                                output=output_path,
+                                profile=profile,
+                                ctx_vars={
+                                    '_laserscad_mode': int(LaserSCADOp.cut),
+                                    '_lpart_current_page': pageno,
+                                },
+                                user_vars=define_vars)
 
 def start_preview(profile, openscad_module, openscad_exe='openscad', define_vars=None):
     print('=> Starting preview...')
-    openscad_module = os.path.abspath(openscad_module)
-    params = {}
-    if define_vars is not None:
-        params.update(define_vars)
-    params.update(profile_to_params(profile))
-    params['_laserscad_mode'] = int(LaserSCADOp.preview)
-    defines = generate_defines(params)
-    subprocess.run([openscad_exe,
-                    *defines,
-                    openscad_module])
+    open_module_in_openscad(openscad_module,
+                            openscad_exe=openscad_exe,
+                            profile=profile,
+                            ctx_vars={'_laserscad_mode': int(LaserSCADOp.preview)},
+                            user_vars=define_vars)
 
 if __name__ == '__main__':
     p, args = parse_args()
