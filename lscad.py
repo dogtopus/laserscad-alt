@@ -3,6 +3,8 @@
 import argparse
 import enum
 import json
+import math
+import numbers
 import os
 import re
 import subprocess
@@ -63,15 +65,15 @@ def generate_defines(params):
         # ranges
         elif isinstance(v, range):
             return f'[{v.start}:{v.step}:{v.stop-1}]'
-        # strings
+        # strings (must be checked before Sequence)
         elif isinstance(v, str):
             v = OPENSCAD_STR_ESC.sub(r'\\\1', v)
             return f'"{v}"'
-        # booleans
+        # booleans (must be checked before numbers.Real because bool is also real)
         elif isinstance(v, bool):
             return f'{"true" if v else "false"}'
         # numbers
-        elif isinstance(v, int) or isinstance(v, float):
+        elif isinstance(v, numbers.Real):
             return f'{repr(v)}'
         # vectors
         elif isinstance(v, Sequence):
@@ -104,7 +106,7 @@ def extract_bb(openscad_module, openscad_exe='openscad', define_vars=None):
         open_module_in_openscad(openscad_module,
                                 openscad_exe=openscad_exe,
                                 output=openscad_output.name,
-                                ctx_vars={'_laserscad_mode': int(LaserSCADOp.pack)},
+                                ctx_vars={'_laserscad_mode': LaserSCADOp.pack},
                                 user_vars=define_vars)
         print('=> Extracting bounding boxes for lparts...')
         for lines in openscad_output:
@@ -146,7 +148,7 @@ def pack_pages(bb, page_dim):
     print('=> Packing...')
     packer = rectpack.newPacker(rotation=True)
     # TODO add page constraints and probably multiple page dimension support
-    packer.add_bin(page_dim[0], page_dim[1], count=float('inf'))
+    packer.add_bin(page_dim[0], page_dim[1], count=math.inf)
     bb_buffered = dict(bb)
     for part_id, dim in bb_buffered.items():
         w, h = dim
@@ -178,7 +180,7 @@ def export_layer(profile, openscad_module, output_dir, openscad_exe='openscad', 
     openscad_module_name = '.'.join(tuple(os.path.basename(openscad_module).split('.'))[:-1])
     output_type = 'engrave' if engrave else 'cut'
     suffix = 'svg' if engrave else 'dxf'
-    op = int(LaserSCADOp.engrave if engrave else LaserSCADOp.cut)
+    op = LaserSCADOp.engrave if engrave else LaserSCADOp.cut
     for pageno in range(profile['pages']):
         output_file = f'{openscad_module_name}_{output_type}_{pageno}.{suffix}'
         output_path = os.path.join(output_dir_abs, output_file)
@@ -202,7 +204,7 @@ def start_preview(profile, openscad_module, openscad_exe='openscad', define_vars
     open_module_in_openscad(openscad_module,
                             openscad_exe=openscad_exe,
                             profile=profile,
-                            ctx_vars={'_laserscad_mode': int(LaserSCADOp.preview)},
+                            ctx_vars={'_laserscad_mode': LaserSCADOp.preview},
                             user_vars=define_vars)
 
 if __name__ == '__main__':
