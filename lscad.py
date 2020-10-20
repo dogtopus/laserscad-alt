@@ -72,6 +72,9 @@ def generate_defines(params):
         # booleans (must be checked before numbers.Real because bool is also real)
         elif isinstance(v, bool):
             return f'{"true" if v else "false"}'
+        # IntEnums
+        elif isinstance(v, enum.IntEnum):
+            return f'{int(v)}'
         # numbers
         elif isinstance(v, numbers.Real):
             return f'{repr(v)}'
